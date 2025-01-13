@@ -1,0 +1,689 @@
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Multi-File HTML Parser and Documentation Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&amp;display=swap" rel="stylesheet">
+    <style>
+        /* Reset and Base Styles */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: linear-gradient(135deg, #0d0d0d, #1a1a1a);
+            color: #fff;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        /* Sidebar Styling */
+        .sidebar {
+            width: 30%;
+            max-width: 350px;
+            background: #1a1a1a;
+            overflow-y: auto;
+            padding: 20px;
+            border-right: 1px solid #333;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        .sidebar h2 {
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+            color: #fff;
+        }
+        .file-upload {
+            margin-bottom: 20px;
+            width: 100%;
+            padding: 10px;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 8px;
+            color: #ddd;
+            cursor: pointer;
+        }
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .file-item {
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #ddd;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        .file-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .file-item input {
+            background: transparent;
+            border: none;
+            color: inherit;
+            width: 100%;
+            font-size: inherit;
+            outline: none;
+            cursor: default;
+        }
+        /* Main Content Styling */
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+            position: relative;
+            height: 100%;
+        }
+        /* Toolbar Styling */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .dropdown {
+            position: relative;
+            color: #ddd;
+            font-size: 1rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        .dropdown span {
+            padding: 8px 12px;
+            background: #333;
+            border-radius: 8px;
+            transition: background 0.3s ease;
+        }
+        .dropdown:hover span {
+            background: #444;
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 120%;
+            left: 0;
+            background: #1a1a1a;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            z-index: 1000;
+            min-width: 150px;
+        }
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+        .dropdown-content button {
+            background: none;
+            color: #ddd;
+            border: none;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            width: 100%;
+            text-align: left;
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+        .dropdown-content button:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        #viewToggle {
+            background: #333;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        #viewToggle:hover {
+            background: #444;
+        }
+        /* Grid View Styling */
+        .grid-view {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 8px;
+            padding: 8px;
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: auto;
+        }
+
+        .grid-card {
+            position: relative;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #444;
+            border-radius: 6px;
+            overflow: hidden;
+            aspect-ratio: 16/10;
+            padding-bottom: calc(100% / (16/10));  /* Fallback */
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            min-height: 90px;
+            transform: translate3d(0, 0, 0);
+            will-change: transform;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .grid-card:hover {
+            transform: translate3d(0, -2px, 0);
+            will-change: transform;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
+        }
+
+        .grid-card iframe {
+            position: absolute;
+            top: -20%;
+            left: -20%;
+            width: 140%;
+            height: 140%;
+            border: none;
+            background: #111;
+            pointer-events: none;
+            transform: translate3d(0, 0, 0);
+            will-change: transform;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Highlight effect when inspecting */
+        .grid-card.inspecting {
+            outline: 2px solid #0077ed;
+            box-shadow: 0 0 20px rgba(0, 119, 237, 0.5);
+        }
+        .grid-card.active {
+            transform: scale(1.1);
+            will-change: transform;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
+        }
+        .checkbox-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+        .checkbox-container:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .checkbox-container input {
+            display: none;
+        }
+        .checkbox-container .checkmark {
+            width: 12px;
+            height: 12px;
+            background: #4caf50;
+            border-radius: 2px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .checkbox-container input:checked ~ .checkmark {
+            opacity: 1;
+        }
+        /* Preview Area Styling */
+        .preview-area {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            flex-direction: column;
+            flex-grow: 1;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 500;
+            overflow: hidden;
+        }
+        .preview-container {
+            display: flex;
+            flex-direction: row;
+            height: 100%;
+            gap: 20px;
+        }
+        .editor-area {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+        }
+        .editor-area textarea {
+            width: 100%;
+            height: 100%;
+            padding: 10px;
+            border: 1px solid #555;
+            border-radius: 8px;
+            background: #0d0d0d;
+            color: #fff;
+            font-family: monospace;
+            resize: none;
+        }
+        .live-preview {
+            width: 50%;
+            height: 100%;
+            border: none;
+            border-radius: 8px;
+            background: #0d0d0d;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
+        }
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+        .nav-button {
+            background: #333;
+            color: #ddd;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: background 0.3s ease;
+        }
+        .nav-button:hover {
+            background: #444;
+        }
+        /* Responsive Adjustments */
+        @media (max-width: 1400px) {
+            .grid-view {
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            }
+        }
+        @media (max-width: 1000px) {
+            .grid-view {
+                grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            }
+            .sidebar {
+                width: 35%;
+            }
+            .main-content {
+                width: 65%;
+            }
+            .preview-container {
+                flex-direction: column;
+            }
+            .editor-area, .live-preview {
+                width: 100%;
+                height: 45%;
+            }
+        }
+        @media (max-width: 600px) {
+            .grid-view {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                width: 40%;
+            }
+            .main-content {
+                width: 60%;
+            }
+            .preview-container {
+                flex-direction: column;
+            }
+            .editor-area, .live-preview {
+                width: 100%;
+                height: 45%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Files</h2>
+        <input type="file" id="fileInput" accept=".html" multiple="" onchange="processFiles()" class="file-upload">
+        <button onclick="uploadFiles()" class="file-upload" style="margin-top: 10px;">Upload to Google Drive</button>
+        <div class="file-list" id="fileList"></div>
+    </div>
+    
+    <div class="main-content">
+        <div class="toolbar">
+            <div class="dropdown">
+                <span>☰ Options</span>
+                <div class="dropdown-content">
+                    <button onclick="toggleView()">Back to Grid</button>
+                    <button onclick="downloadAll()">Download All</button>
+                    <button onclick="downloadSelected()">Download Selected</button>
+                    <button onclick="toggleEditor()">Edit HTML</button>
+                </div>
+            </div>
+            <span id="viewToggle" class="nav-button" onclick="toggleView()">&lt; [Grid] &gt;</span>
+        </div>
+
+        <div id="cardContainer" class="grid-view"></div>
+
+        <div id="previewArea" class="preview-area">
+            <div class="preview-container">
+                <div class="editor-area">
+                    <textarea id="htmlEditor" placeholder="Edit HTML here..."></textarea>
+                </div>
+                <iframe id="livePreview" class="live-preview" title="Preview"></iframe>
+            </div>
+            <div class="navigation">
+                <button onclick="prevFile()" class="nav-button">&lt; Previous</button>
+                <button onclick="nextFile()" class="nav-button">Next &gt;</button>
+                <button onclick="toggleView()" class="nav-button">Back to Grid</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Google Apps Script URL for uploading files
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyvH7nUVlygV7oLRZcbuI4SgnytLxRabbsTWNtkt37MwdUcYQM1CSIIEkkY-hewfnPnzw/exec';
+
+        let processedFiles = [];
+        let currentIndex = 0;
+        let gridView = true;
+
+        // Cache DOM queries
+        const cardContainer = document.getElementById('cardContainer');
+        const fileList = document.getElementById('fileList');
+        const previewArea = document.getElementById('previewArea');
+        const htmlEditor = document.getElementById('htmlEditor');
+        const livePreview = document.getElementById('livePreview');
+        const viewToggle = document.getElementById('viewToggle');
+
+        // Function to process and display uploaded files
+        async function processFiles() {
+            const fileInput = document.getElementById('fileInput');
+            fileList.textContent = '';
+            processedFiles = [];
+
+            for (let i = 0; i < fileInput.files.length; i++) {
+                const file = fileInput.files[i];
+                const text = await file.text();
+                let updatedText = text.replace(/websim/gi, "Ben Mak Justice Minds");
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(updatedText, "text/html");
+                const title = (doc.querySelector("title") || {}).innerText || "Default Title";
+                const newFileName = title.split(" ").slice(0, 4).join("_") + ".html";
+
+                const blob = new Blob([updatedText], { type: "text/html" });
+                const fileURL = URL.createObjectURL(blob);
+                
+                // Clean up the URL when done
+                setTimeout(() => URL.revokeObjectURL(fileURL), 0);
+                
+                processedFiles.push({ newName: newFileName, fileURL, content: updatedText, selected: false });
+
+                // Create File List Item
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = title.split(" ").slice(0, 4).join(" ");
+                input.readOnly = true;
+                fileItem.appendChild(input);
+                fileItem.onclick = () => showPreview(i);
+                fileList.appendChild(fileItem);
+            }
+            renderCards();
+            if (processedFiles.length > 0) showPreview(0);
+        }
+
+        // Function to render grid cards
+        async function renderCards() {
+            cardContainer.textContent = '';
+            
+            for (const [index, file] of processedFiles.entries()) {
+                const card = document.createElement('div');
+                card.className = 'grid-card';
+                card.dataset.index = index;
+
+                try {
+                    const iframe = document.createElement('iframe');
+                    iframe.title = file.newName;
+                    iframe.setAttribute('scrolling', 'no');
+                    iframe.setAttribute('loading', 'lazy');
+                    iframe.src = file.fileURL;
+                    iframe.onerror = (error) => console.error(`Failed to load iframe for ${file.newName}:`, error);
+                    card.appendChild(iframe);
+                } catch (error) {
+                    console.error(`Error creating card for ${file.newName}:`, error);
+                    // Create fallback content
+                    const fallback = document.createElement('div');
+                    fallback.style.cssText = 'width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px;';
+                    fallback.textContent = file.newName;
+                    card.appendChild(fallback);
+                }
+
+                const checkboxContainer = document.createElement('div');
+                checkboxContainer.className = 'checkbox-container';
+                const checkbox = document.createElement('input');
+                checkbox.type = "checkbox";
+                checkbox.checked = file.selected;
+                const checkmark = document.createElement('div');
+                checkmark.className = 'checkmark';
+                
+                checkbox.onclick = (e) => {
+                    e.stopPropagation();
+                    file.selected = checkbox.checked;
+                };
+                
+                checkboxContainer.appendChild(checkbox);
+                checkboxContainer.appendChild(checkmark);
+                card.appendChild(checkboxContainer);
+
+                card.onclick = (event) => {
+                    if (event.altKey) {
+                        // Alt+Click for inspect mode
+                        const cards = document.querySelectorAll('.grid-card');
+                        cards.forEach(c => c.classList.remove('inspecting'));
+                        card.classList.add('inspecting');
+                        console.log(`Inspecting card: ${file.newName}`);
+                    } else {
+                        showPreview(index);
+                    }
+                };
+                cardContainer.appendChild(card);
+            }
+        }
+
+        // Function to show preview with split-screen editor
+        function showPreview(index) {
+            currentIndex = index;
+            const file = processedFiles[index];
+            livePreview.src = file.fileURL;
+            htmlEditor.value = file.content;
+            previewArea.style.display = 'flex';
+            cardContainer.style.display = 'none';
+            gridView = false;
+            updateViewToggle();
+
+            // Highlight active card
+            const cards = document.querySelectorAll('.grid-card');
+            cards.forEach((card, idx) => {
+                card.classList.toggle('active', idx === index);
+            });
+        }
+
+        // Function to toggle between grid and preview views
+        function toggleView() {
+            gridView = !gridView;
+            cardContainer.style.display = gridView ? 'grid' : 'none';
+            previewArea.style.display = gridView ? 'none' : 'flex';
+            updateViewToggle();
+
+            if (gridView) {
+                // Remove active highlight from all cards
+                const cards = document.querySelectorAll('.grid-card');
+                cards.forEach(card => card.classList.remove('active'));
+            } else {
+                showPreview(currentIndex);
+            }
+        }
+
+        // Function to update the view toggle button text
+        function updateViewToggle() {
+            viewToggle.textContent = gridView ? "< [Grid] >" : "< [Preview] >";
+        }
+
+        // Function to navigate to the previous file
+        function prevFile() {
+            if (currentIndex > 0) {
+                showPreview(--currentIndex);
+            }
+        }
+
+        // Function to navigate to the next file
+        function nextFile() {
+            if (currentIndex < processedFiles.length - 1) {
+                showPreview(++currentIndex);
+            }
+        }
+
+        // Function to download all files
+        function downloadAll() {
+            processedFiles.forEach(file => {
+                const link = document.createElement('a');
+                link.href = file.fileURL;
+                link.download = file.newName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+        }
+
+        // Function to download selected files
+        function downloadSelected() {
+            const selectedFiles = processedFiles.filter(file => file.selected);
+            if (selectedFiles.length === 0) {
+                alert("No files selected for download.");
+                return;
+            }
+            selectedFiles.forEach(file => {
+                const link = document.createElement('a');
+                link.href = file.fileURL;
+                link.download = file.newName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+        }
+
+        // Function to toggle the HTML editor
+        function toggleEditor() {
+            if (htmlEditor.style.display === 'none' || htmlEditor.style.display === '') {
+                htmlEditor.style.display = 'block';
+                livePreview.style.display = 'block';
+                // Synchronize editor content with the live preview
+                htmlEditor.value = processedFiles[currentIndex].content;
+                livePreview.src = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlEditor.value);
+            } else {
+                htmlEditor.style.display = 'none';
+                livePreview.style.display = 'none';
+            }
+
+            // Listen for changes in the editor to update the live preview
+            htmlEditor.oninput = function() {
+                processedFiles[currentIndex].content = htmlEditor.value;
+                livePreview.src = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlEditor.value);
+            };
+        }
+
+        // Function to upload files to Google Drive via Google Apps Script
+        async function uploadFiles() {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput.files.length === 0) {
+                alert("No files selected for upload.");
+                return;
+            }
+            for (let file of fileInput.files) {
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    const content = e.target.result;
+                    const params = new URLSearchParams();
+                    params.append('fileName', file.name);
+                    params.append('fileContent', content);
+                    params.append('mimeType', file.type || 'text/html');
+
+                    try {
+                        const response = await fetch(GOOGLE_SCRIPT_URL, {
+                            method: 'POST',
+                            body: params
+                        });
+                        const result = await response.json();
+                        if (result.status === 'success') {
+                            alert(`File "${file.name}" uploaded successfully.`);
+                            // Optionally, refresh the file list from Google Drive
+                            loadFileList();
+                        } else {
+                            console.error(result.message);
+                            alert(`Failed to upload "${file.name}": ${result.message}`);
+                        }
+                    } catch (error) {
+                        console.error('Error uploading file:', error);
+                        alert(`Error uploading "${file.name}": ${error.message}`);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        // Function to load the file list from Google Drive
+        async function loadFileList() {
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL + '?action=list');
+                const result = await response.json();
+                if (result.status === 'success') {
+                    displayDriveFiles(result.files);
+                } else {
+                    console.error(result.message);
+                    alert(`Failed to load files: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error loading file list:', error);
+                alert(`Error loading file list: ${error.message}`);
+            }
+        }
+
+        // Function to display files loaded from Google Drive
+        function displayDriveFiles(files) {
+            files.forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = file.name;
+                input.readOnly = true;
+                fileItem.appendChild(input);
+                fileItem.onclick = () => {
+                    currentIndex = processedFiles.length;
+                    processedFiles.push({
+                        newName: file.name,
+                        fileURL: file.url,
+                        content: file.content,
+                        selected: false
+                    });
+                    renderCards();
+                    showPreview(currentIndex);
+                };
+                fileList.appendChild(fileItem);
+            });
+        }
+
+        // Initial load of files from Google Drive
+        window.onload = function() {
+            loadFileList();
+        };
+    </script>
+
+
+</body></html>
